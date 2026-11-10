@@ -3,12 +3,13 @@ package com.citas.users_service.controller;
 import com.citas.users_service.dto.loginRequestDTO;
 import com.citas.users_service.dto.UserRequestDTO;
 import com.citas.users_service.dto.UserResponseDTO;
+import com.citas.users_service.security.CustomUserDetails;
 import com.citas.users_service.service.UserService;
-
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -17,8 +18,11 @@ import java.util.Map;
 @RequestMapping("/users")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
@@ -37,25 +41,47 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        if (currentUser == null || currentUser.getRole() != com.citas.users_service.model.Role.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No autorizado");
+        }
         return ResponseEntity.ok(userService.findAll());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getUser(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getUser(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        if (!userService.canAccessUser(currentUser.getId(), id, currentUser.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No autorizado");
+        }
+
         return ResponseEntity.ok(userService.findById(id));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
-            @Valid @RequestBody UserRequestDTO request) {
+            @Valid @RequestBody UserRequestDTO request,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        if (!userService.canAccessUser(currentUser.getId(), id, currentUser.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No autorizado");
+        }
 
         return ResponseEntity.ok(userService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+
+        if (!userService.canAccessUser(currentUser.getId(), id, currentUser.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No autorizado");
+        }
+
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }

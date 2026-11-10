@@ -3,7 +3,7 @@ package com.citas.users_service.dto;
 import com.citas.users_service.model.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class UserRequestDTO {
 
@@ -15,9 +15,9 @@ public class UserRequestDTO {
     private String email;
 
     @NotBlank(message = "La contraseña es obligatoria")
+    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
     private String password;
 
-    @NotNull(message = "El rol es obligatorio")
     private Role rol;
 
     public UserRequestDTO() {}

@@ -5,8 +5,7 @@ import com.citas.users_service.dto.UserResponseDTO;
 import com.citas.users_service.model.Role;
 import com.citas.users_service.model.User;
 import com.citas.users_service.repository.UserRepository;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,8 +13,15 @@ import java.util.List;
 @Service
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+    }
 
     public UserResponseDTO create(UserRequestDTO request) {
 
@@ -29,13 +35,8 @@ public class UserService {
         User user = new User();
         user.setNombre(request.getNombre().trim());
         user.setEmail(email);
-        user.setPassword(password);
-
-        if (request.getRol() == null) {
-            user.setRol(Role.CLIENTE);
-        } else {
-            user.setRol(request.getRol());
-        }
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRol(Role.CLIENTE);
 
         User saved = userRepository.save(user);
 
@@ -76,7 +77,6 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
         String email = request.getEmail().trim().toLowerCase();
-        String password = request.getPassword().trim();
 
         if (!user.getEmail().equals(email) && userRepository.existsByEmail(email)) {
             throw new RuntimeException("Ya existe un usuario con ese correo");
@@ -84,11 +84,12 @@ public class UserService {
 
         user.setNombre(request.getNombre().trim());
         user.setEmail(email);
-        user.setPassword(password);
 
-        if (request.getRol() != null) {
-            user.setRol(request.getRol());
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.getPassword().trim()));
         }
+
+        user.setRol(user.getRol());
 
         User updated = userRepository.save(user);
 
@@ -116,15 +117,23 @@ public class UserService {
         User user = userRepository.findByEmail(cleanEmail)
                 .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
 
-        if (!user.getPassword().trim().equals(cleanPassword)) {
+        if (!passwordEncoder.matches(cleanPassword, user.getPassword())) {
             throw new RuntimeException("Credenciales inválidas");
         }
 
-        return new UserResponseDTO(
+        String token = jwtService.generateToken(user);
+        UserResponseDTO response = new UserResponseDTO(
                 user.getId(),
                 user.getNombre(),
                 user.getEmail(),
-                user.getRol()
+                user.getRol(),
+                token
         );
+
+        return response;
+    }
+
+    public boolean canAccessUser(Long currentUserId, Long requestedUserId, Role currentRole) {
+        return currentRole == Role.ADMIN || currentUserId != null && currentUserId.equals(requestedUserId);
     }
 }
