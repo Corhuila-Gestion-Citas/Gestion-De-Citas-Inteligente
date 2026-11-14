@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: usersdb_develop
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "5433:5432"
     volumes:
@@ -19,7 +19,7 @@ services:
     environment:
       POSTGRES_DB: turnosdb_develop
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "5434:5432"
     volumes:
@@ -33,7 +33,7 @@ services:
     environment:
       POSTGRES_DB: notificationsdb_develop
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "5435:5432"
     volumes:
@@ -65,9 +65,10 @@ services:
       - users-db-develop
     environment:
       SPRING_PROFILES_ACTIVE: develop
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-develop:5432/usersdb_develop
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "8081:8081"
     networks:
@@ -82,9 +83,10 @@ services:
       - turnos-db-develop
     environment:
       SPRING_PROFILES_ACTIVE: develop
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-develop:5432/turnosdb_develop
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "8082:8082"
     networks:
@@ -99,9 +101,10 @@ services:
       - notifications-db-develop
     environment:
       SPRING_PROFILES_ACTIVE: develop
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-develop:5432/notificationsdb_develop
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "8083:8083"
     networks:
@@ -117,6 +120,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: develop
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATA_MONGODB_URI: mongodb://audit-db-develop:27017/auditdb_develop
     ports:
       - "8084:8084"

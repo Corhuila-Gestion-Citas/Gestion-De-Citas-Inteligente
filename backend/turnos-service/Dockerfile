@@ -13,4 +13,7 @@ COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8082
 
+RUN groupadd --system app && useradd --system --gid app --no-create-home app
+USER app
+
 ENTRYPOINT ["java", "-jar", "app.jar"]

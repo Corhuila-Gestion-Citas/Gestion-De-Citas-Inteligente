@@ -1,0 +1,270 @@
+{
+  "objetivo": "http://localhost:8280",
+  "fecha": "2026-11-14T13:00:40",
+  "resumen": {
+    "OK": 16,
+    "INCONCLUSO": 4,
+    "INFO": 3,
+    "VULN": 20
+  },
+  "resultados": [
+    {
+      "id": "J01",
+      "prueba": "Acceso sin token a recurso protegido (GET /users/{id})",
+      "estado": "OK",
+      "detalle": "HTTP 401 "
+    },
+    {
+      "id": "J02",
+      "prueba": "Token inválido (cadena aleatoria)",
+      "estado": "OK",
+      "detalle": "HTTP 401 "
+    },
+    {
+      "id": "J00",
+      "prueba": "Secreto JWT predecible (valor por defecto del código)",
+      "estado": "OK",
+      "detalle": "el secreto desplegado NO es el del código. Pasa --secret si lo conoces para activar J03 y J07-J09"
+    },
+    {
+      "id": "J03",
+      "prueba": "Token vencido (exp en el pasado, firma válida)",
+      "estado": "INCONCLUSO",
+      "detalle": "requiere conocer el secreto (J00)"
+    },
+    {
+      "id": "J04",
+      "prueba": "Token modificado (role=ADMIN en el payload, firma original)",
+      "estado": "OK",
+      "detalle": "HTTP 401 "
+    },
+    {
+      "id": "J05",
+      "prueba": "Firma incorrecta (firmado con otra clave)",
+      "estado": "OK",
+      "detalle": "HTTP 401 "
+    },
+    {
+      "id": "J06",
+      "prueba": "Algoritmo 'none' (token sin firma)",
+      "estado": "OK",
+      "detalle": "HTTP 401 "
+    },
+    {
+      "id": "J07",
+      "prueba": "Algoritmo no permitido (HS384)",
+      "estado": "INCONCLUSO",
+      "detalle": "requiere conocer el secreto (J00)"
+    },
+    {
+      "id": "J08",
+      "prueba": "Manipulación de claims con firma válida",
+      "estado": "INCONCLUSO",
+      "detalle": "requiere conocer el secreto (J00)"
+    },
+    {
+      "id": "J09",
+      "prueba": "Token válido de usuario inexistente/eliminado",
+      "estado": "INCONCLUSO",
+      "detalle": "requiere conocer el secreto (J00)"
+    },
+    {
+      "id": "J10",
+      "prueba": "Revocación / cierre de sesión en servidor",
+      "estado": "INFO",
+      "detalle": "no hay endpoint de logout (HTTP 401) ni lista de revocación: un token robado sigue válido hasta que expire."
+    },
+    {
+      "id": "J11",
+      "prueba": "Contenido del payload del JWT (no está cifrado)",
+      "estado": "INFO",
+      "detalle": "claims=['exp', 'iat', 'role', 'sub', 'userId']; faltan=['iss', 'aud', 'nbf']; vida=60 min"
+    },
+    {
+      "id": "A01",
+      "prueba": "IDOR: B lee el perfil de A (GET /users/{idA})",
+      "estado": "OK",
+      "detalle": "acceso denegado sin filtrar datos, pero con HTTP 400 (lo ideal es 403)"
+    },
+    {
+      "id": "A02",
+      "prueba": "IDOR: B modifica el perfil de A (PUT /users/{idA})",
+      "estado": "OK",
+      "detalle": "el perfil de A no cambió; respuesta HTTP 400 (lo ideal es 403)"
+    },
+    {
+      "id": "A03",
+      "prueba": "Escalamiento vertical: CLIENTE lista todos los usuarios (GET /users)",
+      "estado": "OK",
+      "detalle": "HTTP 401 "
+    },
+    {
+      "id": "A04",
+      "prueba": "Mass assignment del rol (registro y actualización con rol=ADMIN)",
+      "estado": "OK",
+      "detalle": "rol en registro=CLIENTE"
+    },
+    {
+      "id": "A05",
+      "prueba": "Listar TODOS los turnos sin autenticación (GET /turnos)",
+      "estado": "VULN",
+      "detalle": "HTTP 200, 0 registros expuestos"
+    },
+    {
+      "id": "A06",
+      "prueba": "BOLA: B crea un turno a nombre de A (idUsuario tomado del cuerpo)",
+      "estado": "VULN",
+      "detalle": "HTTP 201 y el turno quedó a nombre de A: el servidor confía en el idUsuario del cliente"
+    },
+    {
+      "id": "A07",
+      "prueba": "BOLA: B lee los turnos de A (GET /turnos/usuario/{idA})",
+      "estado": "VULN",
+      "detalle": "HTTP 200, datos de A visibles para B"
+    },
+    {
+      "id": "A07b",
+      "prueba": "BOLA: B lee un turno de A por id (GET /turnos/{id})",
+      "estado": "VULN",
+      "detalle": "HTTP 200: la petición NO fue rechazada"
+    },
+    {
+      "id": "A08",
+      "prueba": "BOLA: B reasigna/edita el turno de A (PUT /turnos/{id})",
+      "estado": "VULN",
+      "detalle": "HTTP 200: la petición NO fue rechazada"
+    },
+    {
+      "id": "A08b",
+      "prueba": "BOLA: B cancela el turno de A (PUT /turnos/cancelar/{id})",
+      "estado": "VULN",
+      "detalle": "HTTP 200: la petición NO fue rechazada"
+    },
+    {
+      "id": "A08c",
+      "prueba": "BOLA: B elimina el turno de A (DELETE /turnos/{id})",
+      "estado": "VULN",
+      "detalle": "HTTP 200: la petición NO fue rechazada"
+    },
+    {
+      "id": "A09",
+      "prueba": "Listar TODAS las notificaciones sin autenticación",
+      "estado": "VULN",
+      "detalle": "HTTP 200, 0 registros"
+    },
+    {
+      "id": "A09b",
+      "prueba": "B crea una notificación falsa para A",
+      "estado": "VULN",
+      "detalle": "HTTP 201 y quedó a nombre de A: cualquiera puede suplantar notificaciones"
+    },
+    {
+      "id": "A09c",
+      "prueba": "B marca como leída la notificación de A",
+      "estado": "VULN",
+      "detalle": "HTTP 200: la petición NO fue rechazada"
+    },
+    {
+      "id": "A09d",
+      "prueba": "B elimina la notificación de A",
+      "estado": "VULN",
+      "detalle": "HTTP 204: la petición NO fue rechazada"
+    },
+    {
+      "id": "A10",
+      "prueba": "Leer TODA la auditoría sin autenticación",
+      "estado": "VULN",
+      "detalle": "HTTP 200, 0 registros"
+    },
+    {
+      "id": "A10b",
+      "prueba": "Falsificar eventos de auditoría sin autenticación (POST /audit)",
+      "estado": "VULN",
+      "detalle": "HTTP 201"
+    },
+    {
+      "id": "A10c",
+      "prueba": "Borrar registros de auditoría sin autenticación (DELETE /audit/{id})",
+      "estado": "VULN",
+      "detalle": "HTTP 204"
+    },
+    {
+      "id": "A11",
+      "prueba": "Servicios y bases de datos accesibles directamente (saltándose el gateway)",
+      "estado": "OK",
+      "detalle": "puertos abiertos en localhost: ninguno"
+    },
+    {
+      "id": "I01",
+      "prueba": "Enumeración de usuarios por registro duplicado",
+      "estado": "VULN",
+      "detalle": "respuesta: 'Ya existe un usuario con ese correo'"
+    },
+    {
+      "id": "I02",
+      "prueba": "Enumeración de usuarios por tiempo de respuesta en login",
+      "estado": "VULN",
+      "detalle": "mediana usuario existente=277 ms, inexistente=15 ms (x17.9)"
+    },
+    {
+      "id": "I03",
+      "prueba": "Fuga de información en mensajes de error",
+      "estado": "OK",
+      "detalle": "HTTP 400 / 400 sin trazas internas"
+    },
+    {
+      "id": "I04",
+      "prueba": "Fuerza bruta: 25 intentos de login fallidos seguidos",
+      "estado": "VULN",
+      "detalle": "códigos=[400] (sin bloqueo ni limitación de tasa)"
+    },
+    {
+      "id": "I05",
+      "prueba": "SQL Injection en login (email/password)",
+      "estado": "OK",
+      "detalle": "HTTP 400"
+    },
+    {
+      "id": "I06",
+      "prueba": "SQL Injection en parámetro de ruta (/turnos/doctores/{esp})",
+      "estado": "OK",
+      "detalle": "HTTP 200, respuesta=[]"
+    },
+    {
+      "id": "I07",
+      "prueba": "NoSQL Injection en audit ({\"$ne\": null} en ruta)",
+      "estado": "OK",
+      "detalle": "HTTP 200, 0 registros devueltos"
+    },
+    {
+      "id": "I08",
+      "prueba": "XSS almacenado: el backend guarda HTML/JS sin sanitizar",
+      "estado": "INFO",
+      "detalle": "guardado tal cual (titulo='<script>alert(1)</script>'). Riesgo real depende del frontend: confirma que Angular lo escapa y que no se usa [innerHTML]."
+    },
+    {
+      "id": "I09",
+      "prueba": "CORS: origen no autorizado (https://evil.example)",
+      "estado": "OK",
+      "detalle": "Access-Control-Allow-Origin=None"
+    },
+    {
+      "id": "I10",
+      "prueba": "Cabeceras de seguridad en /users/health",
+      "estado": "VULN",
+      "detalle": "faltan: ['Content-Security-Policy']"
+    },
+    {
+      "id": "I10",
+      "prueba": "Cabeceras de seguridad en /turnos/especialidades",
+      "estado": "VULN",
+      "detalle": "faltan: ['X-Content-Type-Options', 'X-Frame-Options', 'Content-Security-Policy']"
+    },
+    {
+      "id": "I11",
+      "prueba": "Límite de tamaño de entrada (mensaje de 300 000 caracteres)",
+      "estado": "VULN",
+      "detalle": "HTTP 500: no hay validación de longitud en la API; el error de la base de datos llega como 500 (debería ser 400)"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: usersdb_qa
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "5443:5432"
     volumes:
@@ -24,7 +24,7 @@ services:
     environment:
       POSTGRES_DB: turnosdb_qa
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "5444:5432"
     volumes:
@@ -43,7 +43,7 @@ services:
     environment:
       POSTGRES_DB: notificationsdb_qa
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "5445:5432"
     volumes:
@@ -81,9 +81,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: qa
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-qa:5432/usersdb_qa
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "8181:8181"
     networks:
@@ -100,9 +101,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: qa
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-qa:5432/turnosdb_qa
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "8182:8182"
     networks:
@@ -119,9 +121,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: qa
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-qa:5432/notificationsdb_qa
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     ports:
       - "8183:8183"
     networks:
@@ -138,6 +141,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: qa
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATA_MONGODB_URI: mongodb://audit-db-qa:27017/auditdb_qa
     ports:
       - "8184:8184"

@@ -84,9 +84,18 @@ jobs:
 
       - name: Validate develop compose
         run: docker compose -f docker-compose.develop.yml config
+        env:
+          JWT_SECRET: ci-solo-para-validar-sintaxis-no-es-un-secreto
+          DB_PASSWORD: ci-solo-para-validar-sintaxis
 
       - name: Validate qa compose
         run: docker compose -f docker-compose.qa.yml config
+        env:
+          JWT_SECRET: ci-solo-para-validar-sintaxis-no-es-un-secreto
+          DB_PASSWORD: ci-solo-para-validar-sintaxis
 
       - name: Validate main compose
         run: docker compose -f docker-compose.main.yml config
+        env:
+          JWT_SECRET: ci-solo-para-validar-sintaxis-no-es-un-secreto
+          DB_PASSWORD: ci-solo-para-validar-sintaxis

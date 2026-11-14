@@ -1,0 +1,416 @@
+From e161c8b4f7c21b637eedc19d799b010827615da6 Mon Sep 17 00:00:00 2001
+From: Auditoria Seguridad <auditoria@example.test>
+Date: Fri, 13 Nov 2026 23:15:10 +0000
+Subject: [PATCH] security: endurecer despliegue (sin puertos expuestos,
+ secretos por entorno, usuario no root, cabeceras nginx)
+
+---
+ .env.example                               | 10 +++++++
+ .github/workflows/ci.yml                   | 11 +++++++-
+ backend/api-gateway/Dockerfile             |  3 ++
+ backend/audit-service/Dockerfile           |  5 +++-
+ backend/notifications-service/Dockerfile   |  5 +++-
+ backend/turnos-service/Dockerfile          |  3 ++
+ backend/users-service/Dockerfile           |  3 ++
+ docker-compose.develop.yml                 | 16 +++++++----
+ docker-compose.main.yml                    | 32 +++++++---------------
+ docker-compose.qa.yml                      | 16 +++++++----
+ frontend/gestion-citas-frontend/nginx.conf |  8 ++++++
+ 11 files changed, 75 insertions(+), 37 deletions(-)
+ create mode 100644 .env.example
+
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..1eaaf45
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,10 @@
++# Copia este archivo como ".env" (NO lo subas a Git) y completa los valores.
++# docker compose lee ".env" automaticamente desde la raiz del repositorio.
++
++# Secreto con el que se firman y verifican los JWT (minimo 32 caracteres).
++# Generalo con:  py -c "import secrets; print(secrets.token_urlsafe(48))"
++JWT_SECRET=
++
++# Contrasena de las bases de datos PostgreSQL.
++# Generala con el mismo comando.
++DB_PASSWORD=
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 7b2befb..5cc1c18 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -84,9 +84,18 @@ jobs:
+ 
+       - name: Validate develop compose
+         run: docker compose -f docker-compose.develop.yml config
++        env:
++          JWT_SECRET: ci-solo-para-validar-sintaxis-no-es-un-secreto
++          DB_PASSWORD: ci-solo-para-validar-sintaxis
+ 
+       - name: Validate qa compose
+         run: docker compose -f docker-compose.qa.yml config
++        env:
++          JWT_SECRET: ci-solo-para-validar-sintaxis-no-es-un-secreto
++          DB_PASSWORD: ci-solo-para-validar-sintaxis
+ 
+       - name: Validate main compose
+-        run: docker compose -f docker-compose.main.yml config
+\ No newline at end of file
++        run: docker compose -f docker-compose.main.yml config
++        env:
++          JWT_SECRET: ci-solo-para-validar-sintaxis-no-es-un-secreto
++          DB_PASSWORD: ci-solo-para-validar-sintaxis
+\ No newline at end of file
+diff --git a/backend/api-gateway/Dockerfile b/backend/api-gateway/Dockerfile
+index dd6c3a8..90350eb 100644
+--- a/backend/api-gateway/Dockerfile
++++ b/backend/api-gateway/Dockerfile
+@@ -13,4 +13,7 @@ COPY --from=build /app/target/*.jar app.jar
+ 
+ EXPOSE 8080
+ 
++RUN groupadd --system app && useradd --system --gid app --no-create-home app
++USER app
++
+ ENTRYPOINT ["java", "-jar", "app.jar"]
+\ No newline at end of file
+diff --git a/backend/audit-service/Dockerfile b/backend/audit-service/Dockerfile
+index c749dc6..99bc197 100644
+--- a/backend/audit-service/Dockerfile
++++ b/backend/audit-service/Dockerfile
+@@ -8,7 +8,7 @@ RUN mvn dependency:go-offline -B
+ COPY src ./src
+ RUN mvn clean package -DskipTests
+ 
+-FROM eclipse-temurin:17-jdk
++FROM eclipse-temurin:17-jre
+ 
+ WORKDIR /app
+ 
+@@ -16,4 +16,7 @@ COPY --from=build /app/target/*.jar app.jar
+ 
+ EXPOSE 8084
+ 
++RUN groupadd --system app && useradd --system --gid app --no-create-home app
++USER app
++
+ ENTRYPOINT ["java", "-jar", "app.jar"]
+diff --git a/backend/notifications-service/Dockerfile b/backend/notifications-service/Dockerfile
+index b49e2b3..56cdf8a 100644
+--- a/backend/notifications-service/Dockerfile
++++ b/backend/notifications-service/Dockerfile
+@@ -8,7 +8,7 @@ RUN mvn dependency:go-offline -B
+ COPY src ./src
+ RUN mvn clean package -DskipTests
+ 
+-FROM eclipse-temurin:17-jdk
++FROM eclipse-temurin:17-jre
+ 
+ WORKDIR /app
+ 
+@@ -16,4 +16,7 @@ COPY --from=build /app/target/*.jar app.jar
+ 
+ EXPOSE 8083
+ 
++RUN groupadd --system app && useradd --system --gid app --no-create-home app
++USER app
++
+ ENTRYPOINT ["java", "-jar", "app.jar"]
+\ No newline at end of file
+diff --git a/backend/turnos-service/Dockerfile b/backend/turnos-service/Dockerfile
+index 04f571f..3644e10 100644
+--- a/backend/turnos-service/Dockerfile
++++ b/backend/turnos-service/Dockerfile
+@@ -13,4 +13,7 @@ COPY --from=build /app/target/*.jar app.jar
+ 
+ EXPOSE 8082
+ 
++RUN groupadd --system app && useradd --system --gid app --no-create-home app
++USER app
++
+ ENTRYPOINT ["java", "-jar", "app.jar"]
+\ No newline at end of file
+diff --git a/backend/users-service/Dockerfile b/backend/users-service/Dockerfile
+index d0147cb..5d7b98c 100644
+--- a/backend/users-service/Dockerfile
++++ b/backend/users-service/Dockerfile
+@@ -13,4 +13,7 @@ COPY --from=build /app/target/*.jar app.jar
+ 
+ EXPOSE 8081
+ 
++RUN groupadd --system app && useradd --system --gid app --no-create-home app
++USER app
++
+ ENTRYPOINT ["java", "-jar", "app.jar"]
+\ No newline at end of file
+diff --git a/docker-compose.develop.yml b/docker-compose.develop.yml
+index bf8cfbe..05b325b 100644
+--- a/docker-compose.develop.yml
++++ b/docker-compose.develop.yml
+@@ -5,7 +5,7 @@ services:
+     environment:
+       POSTGRES_DB: usersdb_develop
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "5433:5432"
+     volumes:
+@@ -19,7 +19,7 @@ services:
+     environment:
+       POSTGRES_DB: turnosdb_develop
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "5434:5432"
+     volumes:
+@@ -33,7 +33,7 @@ services:
+     environment:
+       POSTGRES_DB: notificationsdb_develop
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "5435:5432"
+     volumes:
+@@ -65,9 +65,10 @@ services:
+       - users-db-develop
+     environment:
+       SPRING_PROFILES_ACTIVE: develop
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-develop:5432/usersdb_develop
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "8081:8081"
+     networks:
+@@ -82,9 +83,10 @@ services:
+       - turnos-db-develop
+     environment:
+       SPRING_PROFILES_ACTIVE: develop
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-develop:5432/turnosdb_develop
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "8082:8082"
+     networks:
+@@ -99,9 +101,10 @@ services:
+       - notifications-db-develop
+     environment:
+       SPRING_PROFILES_ACTIVE: develop
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-develop:5432/notificationsdb_develop
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "8083:8083"
+     networks:
+@@ -117,6 +120,7 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: develop
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATA_MONGODB_URI: mongodb://audit-db-develop:27017/auditdb_develop
+     ports:
+       - "8084:8084"
+diff --git a/docker-compose.main.yml b/docker-compose.main.yml
+index f9145c6..b531b93 100644
+--- a/docker-compose.main.yml
++++ b/docker-compose.main.yml
+@@ -5,9 +5,7 @@ services:
+     environment:
+       POSTGRES_DB: usersdb_main
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
+-    ports:
+-      - "5453:5432"
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     volumes:
+       - usersdb_main_data:/var/lib/postgresql/data
+     networks:
+@@ -24,9 +22,7 @@ services:
+     environment:
+       POSTGRES_DB: turnosdb_main
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
+-    ports:
+-      - "5454:5432"
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     volumes:
+       - turnosdb_main_data:/var/lib/postgresql/data
+     networks:
+@@ -43,9 +39,7 @@ services:
+     environment:
+       POSTGRES_DB: notificationsdb_main
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
+-    ports:
+-      - "5455:5432"
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     volumes:
+       - notificationsdb_main_data:/var/lib/postgresql/data
+     networks:
+@@ -59,8 +53,6 @@ services:
+   audit-db-main:
+     image: mongo:7
+     container_name: audit-db-main
+-    ports:
+-      - "27019:27017"
+     volumes:
+       - auditdb_main_data:/data/db
+     networks:
+@@ -81,11 +73,10 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: main
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-main:5432/usersdb_main
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
+-    ports:
+-      - "8281:8281"
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     networks:
+       - main-net
+     restart: unless-stopped
+@@ -100,11 +91,10 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: main
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-main:5432/turnosdb_main
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
+-    ports:
+-      - "8282:8282"
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     networks:
+       - main-net
+     restart: unless-stopped
+@@ -119,11 +109,10 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: main
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-main:5432/notificationsdb_main
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
+-    ports:
+-      - "8283:8283"
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     networks:
+       - main-net
+     restart: unless-stopped
+@@ -138,9 +127,8 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: main
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATA_MONGODB_URI: mongodb://audit-db-main:27017/auditdb_main
+-    ports:
+-      - "8284:8284"
+     networks:
+       - main-net
+     restart: unless-stopped
+diff --git a/docker-compose.qa.yml b/docker-compose.qa.yml
+index 5f1cebd..d70faa5 100644
+--- a/docker-compose.qa.yml
++++ b/docker-compose.qa.yml
+@@ -5,7 +5,7 @@ services:
+     environment:
+       POSTGRES_DB: usersdb_qa
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "5443:5432"
+     volumes:
+@@ -24,7 +24,7 @@ services:
+     environment:
+       POSTGRES_DB: turnosdb_qa
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "5444:5432"
+     volumes:
+@@ -43,7 +43,7 @@ services:
+     environment:
+       POSTGRES_DB: notificationsdb_qa
+       POSTGRES_USER: postgres
+-      POSTGRES_PASSWORD: yeison
++      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "5445:5432"
+     volumes:
+@@ -81,9 +81,10 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: qa
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-qa:5432/usersdb_qa
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "8181:8181"
+     networks:
+@@ -100,9 +101,10 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: qa
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-qa:5432/turnosdb_qa
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "8182:8182"
+     networks:
+@@ -119,9 +121,10 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: qa
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-qa:5432/notificationsdb_qa
+       SPRING_DATASOURCE_USERNAME: postgres
+-      SPRING_DATASOURCE_PASSWORD: yeison
++      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+     ports:
+       - "8183:8183"
+     networks:
+@@ -138,6 +141,7 @@ services:
+         condition: service_healthy
+     environment:
+       SPRING_PROFILES_ACTIVE: qa
++      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
+       SPRING_DATA_MONGODB_URI: mongodb://audit-db-qa:27017/auditdb_qa
+     ports:
+       - "8184:8184"
+diff --git a/frontend/gestion-citas-frontend/nginx.conf b/frontend/gestion-citas-frontend/nginx.conf
+index 4a49a43..69cf308 100644
+--- a/frontend/gestion-citas-frontend/nginx.conf
++++ b/frontend/gestion-citas-frontend/nginx.conf
+@@ -4,6 +4,14 @@ server {
+     root /usr/share/nginx/html;
+     index index.html;
+ 
++    server_tokens off;
++
++    add_header X-Content-Type-Options "nosniff" always;
++    add_header X-Frame-Options "DENY" always;
++    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
++    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
++    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; script-src-attr 'unsafe-hashes' 'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://api-gateway-main.onrender.com http://localhost:8080 http://localhost:8180 http://localhost:8280; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
++
+     gzip on;
+     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+ 
+-- 
+2.43.0
+

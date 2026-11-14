@@ -5,9 +5,7 @@ services:
     environment:
       POSTGRES_DB: usersdb_main
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
-    ports:
-      - "5453:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     volumes:
       - usersdb_main_data:/var/lib/postgresql/data
     networks:
@@ -24,9 +22,7 @@ services:
     environment:
       POSTGRES_DB: turnosdb_main
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
-    ports:
-      - "5454:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     volumes:
       - turnosdb_main_data:/var/lib/postgresql/data
     networks:
@@ -43,9 +39,7 @@ services:
     environment:
       POSTGRES_DB: notificationsdb_main
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
-    ports:
-      - "5455:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     volumes:
       - notificationsdb_main_data:/var/lib/postgresql/data
     networks:
@@ -59,8 +53,6 @@ services:
   audit-db-main:
     image: mongo:7
     container_name: audit-db-main
-    ports:
-      - "27019:27017"
     volumes:
       - auditdb_main_data:/data/db
     networks:
@@ -81,11 +73,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: main
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-main:5432/usersdb_main
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
-    ports:
-      - "8281:8281"
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     networks:
       - main-net
     restart: unless-stopped
@@ -100,11 +91,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: main
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-main:5432/turnosdb_main
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
-    ports:
-      - "8282:8282"
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     networks:
       - main-net
     restart: unless-stopped
@@ -119,11 +109,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: main
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-main:5432/notificationsdb_main
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
-    ports:
-      - "8283:8283"
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
     networks:
       - main-net
     restart: unless-stopped
@@ -138,9 +127,8 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: main
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en el archivo .env (minimo 32 caracteres)}
       SPRING_DATA_MONGODB_URI: mongodb://audit-db-main:27017/auditdb_main
-    ports:
-      - "8284:8284"
     networks:
       - main-net
     restart: unless-stopped
