@@ -5,7 +5,6 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5435/notificationsdb_develop
     username: postgres
-    password: yeison
     driver-class-name: org.postgresql.Driver
 
   jpa:

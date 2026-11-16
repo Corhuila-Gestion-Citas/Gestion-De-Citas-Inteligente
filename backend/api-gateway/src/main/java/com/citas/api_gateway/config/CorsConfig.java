@@ -26,11 +26,6 @@ public class CorsConfig {
         // Frontend MAIN - Angular Docker
         config.addAllowedOrigin("http://localhost:4220");
 
-        // Otros frontends usados en pruebas
-        config.addAllowedOrigin("http://localhost:5173");
-        config.addAllowedOrigin("http://localhost:3000");
-        config.addAllowedOrigin("http://localhost:8080");
-
         config.addAllowedHeader("*");
 
         config.addAllowedMethod("GET");

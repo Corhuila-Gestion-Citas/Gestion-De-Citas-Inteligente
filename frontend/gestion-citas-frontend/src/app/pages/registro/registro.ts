@@ -35,7 +35,7 @@ export class Registro {
 
     const nombre = this.nombre.trim();
     const email = this.email.trim().toLowerCase();
-    const password = this.password.trim();
+    const password = this.password;
 
     if (!nombre || !email || !password) {
       this.error = 'Debes completar todos los campos';

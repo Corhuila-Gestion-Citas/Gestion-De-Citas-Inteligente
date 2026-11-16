@@ -19,7 +19,7 @@ Sistema distribuido para la gestión de citas médicas, desarrollado como proyec
 **Institución:** Corporación Universitaria del Huila - CORHUILA  
 **Periodo:** 2026-1  
 **Arquitectura:** Microservicios + API Gateway + Frontend Angular  
-**Estado actual:** Backend, frontend y ambientes Docker integrados y funcionales
+**Estado actual:** Proyecto académico; aplicar y validar la configuración de seguridad antes de exponerlo fuera del entorno local
 
 ---
 
@@ -276,6 +276,29 @@ main    → Producción local / demostración
 
 Cada ambiente cuenta con sus propios contenedores, puertos, redes y volúmenes.
 
+## 🔐 Seguridad
+
+- Registro e inicio de sesión son públicos; el resto de las operaciones requiere JWT firmado con **RS256**, con una vigencia predeterminada de 15 minutos.
+- Las operaciones sobre usuarios, turnos, notificaciones y auditorías se limitan al propietario del recurso; las consultas globales y acciones administrativas requieren `ADMIN`.
+- El registro público siempre crea usuarios `CLIENTE`; no se acepta que el cliente se asigne el rol `ADMIN`.
+- `users-service` firma tokens con la clave privada. Los demás microservicios solo reciben la clave pública para validarlos.
+- Las contraseñas se almacenan con BCrypt. No reutilizar claves o contraseñas entre ambientes, ni guardar `.env`, claves privadas o respaldos en Git.
+- El frontend conserva el token en `sessionStorage` y lo envía como `Authorization: Bearer`. Esto reduce su persistencia frente a `localStorage`, pero **no protege contra XSS**; mantener dependencias actualizadas y no insertar HTML no confiable.
+- En QA y main solo se publican frontend y API Gateway. En develop, las bases y microservicios publicados se enlazan únicamente a `127.0.0.1`.
+- Los servicios de aplicación usan cuentas PostgreSQL separadas; MongoDB usa una cuenta `readWrite` limitada a la base de auditoría, distinta de su administrador. Los volúmenes MongoDB creados antes de activar la autenticación no se migran automáticamente.
+
+### Preparar secretos locales
+
+Requiere Node.js. Ejecutar en PowerShell desde la raíz; `.env` está ignorado por Git. Este comando genera claves RSA de 3072 bits en los formatos que esperan los servicios y contraseñas aleatorias, sin imprimir sus valores:
+
+```powershell
+node -e "const fs=require('fs');const crypto=require('crypto');const keys=crypto.generateKeyPairSync('rsa',{modulusLength:3072,publicKeyEncoding:{type:'spki',format:'der'},privateKeyEncoding:{type:'pkcs8',format:'der'}});const secret=()=>crypto.randomBytes(32).toString('hex');const values={JWT_PRIVATE_KEY_BASE64:keys.privateKey.toString('base64'),JWT_PUBLIC_KEY_BASE64:keys.publicKey.toString('base64'),USERS_DB_PASSWORD:secret(),TURNOS_DB_PASSWORD:secret(),NOTIFICATIONS_DB_PASSWORD:secret(),MONGODB_ROOT_PASSWORD:secret(),MONGODB_APP_PASSWORD:secret()};fs.writeFileSync('.env',Object.entries(values).map(([key,value])=>key+'='+value).join('\n'),{encoding:'utf8'});console.log('Archivo .env creado.')"
+```
+
+La clave privada solo debe estar disponible para `users-service`; ambas claves deben corresponder. Para producción real, inyectar estos valores desde un gestor de secretos, usar HTTPS y no guardar claves privadas en archivos de despliegue. No borrar o reemplazar volúmenes para activar MongoDB autenticado sin primero hacer backup y planear la migración.
+
+El script `database/init-app-user.sh` limita privilegios de las cuentas PostgreSQL en volúmenes nuevos. En volúmenes existentes, respaldar los datos y aplicar manualmente `ALTER ROLE <usuario> WITH NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;` a cada cuenta (`users_app`, `turnos_app`, `notifications_app`). MongoDB con volúmenes antiguos también requiere una migración autenticada respaldada; las variables `MONGO_INITDB_*` no crean usuarios en un volumen previamente inicializado.
+
 ---
 
 ## 🌐 Puertos por ambiente
@@ -286,14 +309,14 @@ Cada ambiente cuenta con sus propios contenedores, puertos, redes y volúmenes.
 |---|---:|
 | Frontend Angular | `4200` |
 | API Gateway | `8080` |
-| users-service | `8081` |
-| turnos-service | `8082` |
-| notifications-service | `8083` |
-| audit-service | `8084` |
-| users-db PostgreSQL | `5433` |
-| turnos-db PostgreSQL | `5434` |
-| notifications-db PostgreSQL | `5435` |
-| audit-db MongoDB | `27017` |
+| users-service (solo localhost) | `8081` |
+| turnos-service (solo localhost) | `8082` |
+| notifications-service (solo localhost) | `8083` |
+| audit-service (solo localhost) | `8084` |
+| users-db PostgreSQL (solo localhost) | `5433` |
+| turnos-db PostgreSQL (solo localhost) | `5434` |
+| notifications-db PostgreSQL (solo localhost) | `5435` |
+| audit-db MongoDB (solo localhost) | `27017` |
 
 ### Ambiente QA
 
@@ -301,14 +324,7 @@ Cada ambiente cuenta con sus propios contenedores, puertos, redes y volúmenes.
 |---|---:|
 | Frontend Angular | `4210` |
 | API Gateway | `8180` |
-| users-service | `8181` |
-| turnos-service | `8182` |
-| notifications-service | `8183` |
-| audit-service | `8184` |
-| users-db PostgreSQL | `5443` |
-| turnos-db PostgreSQL | `5444` |
-| notifications-db PostgreSQL | `5445` |
-| audit-db MongoDB | `27018` |
+| Microservicios y bases de datos | No publicados |
 
 ### Ambiente main
 
@@ -316,14 +332,7 @@ Cada ambiente cuenta con sus propios contenedores, puertos, redes y volúmenes.
 |---|---:|
 | Frontend Angular | `4220` |
 | API Gateway | `8280` |
-| users-service | `8281` |
-| turnos-service | `8282` |
-| notifications-service | `8283` |
-| audit-service | `8284` |
-| users-db PostgreSQL | `5453` |
-| turnos-db PostgreSQL | `5454` |
-| notifications-db PostgreSQL | `5455` |
-| audit-db MongoDB | `27019` |
+| Microservicios y bases de datos | No publicados |
 
 ---
 
@@ -334,6 +343,8 @@ Cada ambiente cuenta con sus propios contenedores, puertos, redes y volúmenes.
 ---
 
 ## Ejecutar ambiente develop
+
+Antes de iniciar cualquier ambiente, crear el archivo `.env` siguiendo **Preparar secretos locales**.
 
 ```powershell
 docker compose -f .\docker-compose.develop.yml up -d --build
@@ -348,11 +359,12 @@ http://localhost:4200
 Probar Gateway:
 
 ```text
-http://localhost:8080/users
-http://localhost:8080/turnos
-http://localhost:8080/notifications
+http://localhost:8080/users/health
+http://localhost:8080/turnos/especialidades
 http://localhost:8080/audit/health
 ```
+
+Las rutas de usuarios, turnos, notificaciones y auditoría que contienen datos requieren el JWT recibido al iniciar sesión.
 
 Apagar ambiente develop:
 
@@ -377,9 +389,8 @@ http://localhost:4210
 Probar Gateway:
 
 ```text
-http://localhost:8180/users
-http://localhost:8180/turnos
-http://localhost:8180/notifications
+http://localhost:8180/users/health
+http://localhost:8180/turnos/especialidades
 http://localhost:8180/audit/health
 ```
 
@@ -406,9 +417,8 @@ http://localhost:4220
 Probar Gateway:
 
 ```text
-http://localhost:8280/users
-http://localhost:8280/turnos
-http://localhost:8280/notifications
+http://localhost:8280/users/health
+http://localhost:8280/turnos/especialidades
 http://localhost:8280/audit/health
 ```
 
@@ -443,25 +453,25 @@ Para validar el sistema completo desde el frontend:
 ### Usuarios
 
 ```powershell
-docker exec -it users-db-develop psql -U postgres -d usersdb_develop -c "SELECT * FROM users ORDER BY id_usuario DESC;"
+docker exec -it users-db-develop psql -U users_app -d usersdb_develop -c "SELECT id_usuario, nombre, correo, rol FROM users ORDER BY id_usuario DESC;"
 ```
 
 ### Turnos
 
 ```powershell
-docker exec -it turnos-db-develop psql -U postgres -d turnosdb_develop -c "SELECT id_turno, id_usuario, especialidad, doctor, fecha_hora, estado FROM turnos ORDER BY id_turno DESC;"
+docker exec -it turnos-db-develop psql -U turnos_app -d turnosdb_develop -c "SELECT id_turno, id_usuario, especialidad, doctor, fecha_hora, estado FROM turnos ORDER BY id_turno DESC;"
 ```
 
 ### Notificaciones
 
 ```powershell
-docker exec -it notifications-db-develop psql -U postgres -d notificationsdb_develop -c "SELECT id, id_usuario, titulo, tipo, leida, fecha_creacion FROM notifications ORDER BY id DESC;"
+docker exec -it notifications-db-develop psql -U notifications_app -d notificationsdb_develop -c "SELECT id, id_usuario, titulo, tipo, leida, fecha_creacion FROM notifications ORDER BY id DESC;"
 ```
 
 ### Auditoría en MongoDB
 
 ```powershell
-docker exec -it audit-db-develop mongosh
+docker exec -it audit-db-develop mongosh --username audit_admin --authenticationDatabase admin
 ```
 
 Dentro de MongoDB:
@@ -489,9 +499,9 @@ notifications-service
 ### Verificar tablas creadas
 
 ```powershell
-docker exec -it users-db-develop psql -U postgres -d usersdb_develop -c "\dt"
-docker exec -it turnos-db-develop psql -U postgres -d turnosdb_develop -c "\dt"
-docker exec -it notifications-db-develop psql -U postgres -d notificationsdb_develop -c "\dt"
+docker exec -it users-db-develop psql -U users_app -d usersdb_develop -c "\dt"
+docker exec -it turnos-db-develop psql -U turnos_app -d turnosdb_develop -c "\dt"
+docker exec -it notifications-db-develop psql -U notifications_app -d notificationsdb_develop -c "\dt"
 ```
 
 Resultado esperado:
@@ -505,9 +515,9 @@ users / turnos / notifications
 ### Verificar changesets ejecutados
 
 ```powershell
-docker exec -it users-db-develop psql -U postgres -d usersdb_develop -c "SELECT id, author, filename, dateexecuted, exectype FROM databasechangelog;"
-docker exec -it turnos-db-develop psql -U postgres -d turnosdb_develop -c "SELECT id, author, filename, dateexecuted, exectype FROM databasechangelog;"
-docker exec -it notifications-db-develop psql -U postgres -d notificationsdb_develop -c "SELECT id, author, filename, dateexecuted, exectype FROM databasechangelog;"
+docker exec -it users-db-develop psql -U users_app -d usersdb_develop -c "SELECT id, author, filename, dateexecuted, exectype FROM databasechangelog;"
+docker exec -it turnos-db-develop psql -U turnos_app -d turnosdb_develop -c "SELECT id, author, filename, dateexecuted, exectype FROM databasechangelog;"
+docker exec -it notifications-db-develop psql -U notifications_app -d notificationsdb_develop -c "SELECT id, author, filename, dateexecuted, exectype FROM databasechangelog;"
 ```
 
 Resultado esperado:
@@ -519,9 +529,9 @@ EXECUTED
 ### Verificar que Liquibase no esté bloqueado
 
 ```powershell
-docker exec -it users-db-develop psql -U postgres -d usersdb_develop -c "SELECT * FROM databasechangeloglock;"
-docker exec -it turnos-db-develop psql -U postgres -d turnosdb_develop -c "SELECT * FROM databasechangeloglock;"
-docker exec -it notifications-db-develop psql -U postgres -d notificationsdb_develop -c "SELECT * FROM databasechangeloglock;"
+docker exec -it users-db-develop psql -U users_app -d usersdb_develop -c "SELECT * FROM databasechangeloglock;"
+docker exec -it turnos-db-develop psql -U turnos_app -d turnosdb_develop -c "SELECT * FROM databasechangeloglock;"
+docker exec -it notifications-db-develop psql -U notifications_app -d notificationsdb_develop -c "SELECT * FROM databasechangeloglock;"
 ```
 
 Resultado esperado:

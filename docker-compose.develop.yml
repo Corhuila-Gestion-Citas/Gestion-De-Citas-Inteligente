@@ -4,54 +4,79 @@ services:
     container_name: users-db-develop
     environment:
       POSTGRES_DB: usersdb_develop
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_USER: users_app
+      POSTGRES_PASSWORD: ${USERS_DB_PASSWORD:?Set USERS_DB_PASSWORD in .env}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - usersdb_develop_data:/var/lib/postgresql/data
+      - ./database/init-app-user.sh:/docker-entrypoint-initdb.d/10-restrict-app-user.sh:ro
     networks:
       - develop-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U users_app -d usersdb_develop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   turnos-db-develop:
     image: postgres:16
     container_name: turnos-db-develop
     environment:
       POSTGRES_DB: turnosdb_develop
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_USER: turnos_app
+      POSTGRES_PASSWORD: ${TURNOS_DB_PASSWORD:?Set TURNOS_DB_PASSWORD in .env}
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - turnosdb_develop_data:/var/lib/postgresql/data
+      - ./database/init-app-user.sh:/docker-entrypoint-initdb.d/10-restrict-app-user.sh:ro
     networks:
       - develop-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U turnos_app -d turnosdb_develop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   notifications-db-develop:
     image: postgres:16
     container_name: notifications-db-develop
     environment:
       POSTGRES_DB: notificationsdb_develop
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
+      POSTGRES_USER: notifications_app
+      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD in .env}
     ports:
-      - "5435:5432"
+      - "127.0.0.1:5435:5432"
     volumes:
       - notificationsdb_develop_data:/var/lib/postgresql/data
+      - ./database/init-app-user.sh:/docker-entrypoint-initdb.d/10-restrict-app-user.sh:ro
     networks:
       - develop-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notifications_app -d notificationsdb_develop"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   audit-db-develop:
     image: mongo:7
     container_name: audit-db-develop
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-audit_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:?Set MONGODB_ROOT_PASSWORD in .env}
+      MONGO_INITDB_DATABASE: auditdb_develop
+      MONGODB_APP_USER: audit_app
+      MONGODB_APP_PASSWORD: ${MONGODB_APP_PASSWORD:?Set MONGODB_APP_PASSWORD in .env}
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - auditdb_develop_data:/data/db
+      - ./database/init-mongo-app-user.sh:/docker-entrypoint-initdb.d/10-create-audit-user.sh:ro
     networks:
       - develop-net
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongosh --username \"$${MONGO_INITDB_ROOT_USERNAME}\" --password \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --quiet --eval \"db.runCommand({ ping: 1 }).ok\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -62,14 +87,17 @@ services:
       dockerfile: Dockerfile
     container_name: users-service-develop
     depends_on:
-      - users-db-develop
+      users-db-develop:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: develop
       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-develop:5432/usersdb_develop
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_USERNAME: users_app
+      SPRING_DATASOURCE_PASSWORD: ${USERS_DB_PASSWORD:?Set USERS_DB_PASSWORD in .env}
+      JWT_PRIVATE_KEY_BASE64: ${JWT_PRIVATE_KEY_BASE64:?Set JWT_PRIVATE_KEY_BASE64 in .env}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     ports:
-      - "8081:8081"
+      - "127.0.0.1:8081:8081"
     networks:
       - develop-net
 
@@ -79,14 +107,16 @@ services:
       dockerfile: Dockerfile
     container_name: turnos-service-develop
     depends_on:
-      - turnos-db-develop
+      turnos-db-develop:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: develop
       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-develop:5432/turnosdb_develop
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_USERNAME: turnos_app
+      SPRING_DATASOURCE_PASSWORD: ${TURNOS_DB_PASSWORD:?Set TURNOS_DB_PASSWORD in .env}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     ports:
-      - "8082:8082"
+      - "127.0.0.1:8082:8082"
     networks:
       - develop-net
 
@@ -96,14 +126,16 @@ services:
       dockerfile: Dockerfile
     container_name: notifications-service-develop
     depends_on:
-      - notifications-db-develop
+      notifications-db-develop:
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: develop
       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-develop:5432/notificationsdb_develop
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
+      SPRING_DATASOURCE_USERNAME: notifications_app
+      SPRING_DATASOURCE_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD in .env}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     ports:
-      - "8083:8083"
+      - "127.0.0.1:8083:8083"
     networks:
       - develop-net
 
@@ -117,9 +149,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: develop
-      SPRING_DATA_MONGODB_URI: mongodb://audit-db-develop:27017/auditdb_develop
+      SPRING_DATA_MONGODB_URI: mongodb://audit_app:${MONGODB_APP_PASSWORD:?Set MONGODB_APP_PASSWORD in .env}@audit-db-develop:27017/auditdb_develop?authSource=auditdb_develop
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     ports:
-      - "8084:8084"
+      - "127.0.0.1:8084:8084"
     networks:
       - develop-net
     restart: unless-stopped
@@ -149,7 +182,7 @@ services:
     depends_on:
       - api-gateway-develop
     ports:
-      - "4200:80"
+      - "4200:8080"
     networks:
       - develop-net
     restart: unless-stopped

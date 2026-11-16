@@ -1,18 +1,10 @@
-import { Injectable } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { TestBed } from '@angular/core/testing';
+import { TurnoStoreService } from './turno-store';
 
-@Injectable({
-  providedIn: 'root'
-})
-export class TurnoStoreService {
-
-  turnos:any[] = [];
-
-  agregarTurno(turno:any){
-    this.turnos.push(turno);
-  }
-
-  obtenerTurnos(){
-    return this.turnos;
-  }
-
-}
+describe('TurnoStoreService', () => {
+  it('is created', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient()] });
+    expect(TestBed.inject(TurnoStoreService)).toBeTruthy();
+  });
+});

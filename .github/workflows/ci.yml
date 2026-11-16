@@ -65,12 +65,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=moderate
+
       - name: Build Angular project
         run: npm run build
+
+      - name: Run Angular tests
+        run: npm test -- --watch=false
 
   docker-compose-check:
     name: Validate Docker Compose files
     runs-on: ubuntu-latest
+    env:
+      USERS_DB_PASSWORD: ci-only-users-password
+      TURNOS_DB_PASSWORD: ci-only-turnos-password
+      NOTIFICATIONS_DB_PASSWORD: ci-only-notifications-password
+      MONGODB_ROOT_PASSWORD: ci-only-mongodb-root-password
+      MONGODB_APP_PASSWORD: ci-only-mongodb-app-password
+      JWT_PRIVATE_KEY_BASE64: ci-only-private-key-placeholder
+      JWT_PUBLIC_KEY_BASE64: ci-only-public-key-placeholder
 
     steps:
       - name: Checkout repository
@@ -83,10 +97,10 @@ jobs:
         run: docker compose version
 
       - name: Validate develop compose
-        run: docker compose -f docker-compose.develop.yml config
+        run: docker compose -f docker-compose.develop.yml config --quiet
 
       - name: Validate qa compose
-        run: docker compose -f docker-compose.qa.yml config
+        run: docker compose -f docker-compose.qa.yml config --quiet
 
       - name: Validate main compose
-        run: docker compose -f docker-compose.main.yml config
+        run: docker compose -f docker-compose.main.yml config --quiet

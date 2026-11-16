@@ -29,3 +29,5 @@ Thumbs.db
 
 # Docker
 .env
+jwt-private.*
+jwt-public.*
