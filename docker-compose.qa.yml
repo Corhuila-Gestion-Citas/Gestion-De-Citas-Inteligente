@@ -4,16 +4,15 @@ services:
     container_name: users-db-qa
     environment:
       POSTGRES_DB: usersdb_qa
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
-    ports:
-      - "5443:5432"
+      POSTGRES_USER: users_app
+      POSTGRES_PASSWORD: ${USERS_DB_PASSWORD:?Set USERS_DB_PASSWORD in .env}
     volumes:
       - usersdb_qa_data:/var/lib/postgresql/data
+      - ./database/init-app-user.sh:/docker-entrypoint-initdb.d/10-restrict-app-user.sh:ro
     networks:
       - qa-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d usersdb_qa"]
+      test: ["CMD-SHELL", "pg_isready -U users_app -d usersdb_qa"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,16 +22,15 @@ services:
     container_name: turnos-db-qa
     environment:
       POSTGRES_DB: turnosdb_qa
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
-    ports:
-      - "5444:5432"
+      POSTGRES_USER: turnos_app
+      POSTGRES_PASSWORD: ${TURNOS_DB_PASSWORD:?Set TURNOS_DB_PASSWORD in .env}
     volumes:
       - turnosdb_qa_data:/var/lib/postgresql/data
+      - ./database/init-app-user.sh:/docker-entrypoint-initdb.d/10-restrict-app-user.sh:ro
     networks:
       - qa-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d turnosdb_qa"]
+      test: ["CMD-SHELL", "pg_isready -U turnos_app -d turnosdb_qa"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -42,16 +40,15 @@ services:
     container_name: notifications-db-qa
     environment:
       POSTGRES_DB: notificationsdb_qa
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: yeison
-    ports:
-      - "5445:5432"
+      POSTGRES_USER: notifications_app
+      POSTGRES_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD in .env}
     volumes:
       - notificationsdb_qa_data:/var/lib/postgresql/data
+      - ./database/init-app-user.sh:/docker-entrypoint-initdb.d/10-restrict-app-user.sh:ro
     networks:
       - qa-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d notificationsdb_qa"]
+      test: ["CMD-SHELL", "pg_isready -U notifications_app -d notificationsdb_qa"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -59,14 +56,19 @@ services:
   audit-db-qa:
     image: mongo:7
     container_name: audit-db-qa
-    ports:
-      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-audit_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:?Set MONGODB_ROOT_PASSWORD in .env}
+      MONGO_INITDB_DATABASE: auditdb_qa
+      MONGODB_APP_USER: audit_app
+      MONGODB_APP_PASSWORD: ${MONGODB_APP_PASSWORD:?Set MONGODB_APP_PASSWORD in .env}
     volumes:
       - auditdb_qa_data:/data/db
+      - ./database/init-mongo-app-user.sh:/docker-entrypoint-initdb.d/10-create-audit-user.sh:ro
     networks:
       - qa-net
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.runCommand({ ping: 1 }).ok\""]
+      test: ["CMD-SHELL", "mongosh --username \"$${MONGO_INITDB_ROOT_USERNAME}\" --password \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --quiet --eval \"db.runCommand({ ping: 1 }).ok\""]
       interval: 10s
       timeout: 10s
       retries: 15
@@ -82,10 +84,10 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: qa
       SPRING_DATASOURCE_URL: jdbc:postgresql://users-db-qa:5432/usersdb_qa
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
-    ports:
-      - "8181:8181"
+      SPRING_DATASOURCE_USERNAME: users_app
+      SPRING_DATASOURCE_PASSWORD: ${USERS_DB_PASSWORD:?Set USERS_DB_PASSWORD in .env}
+      JWT_PRIVATE_KEY_BASE64: ${JWT_PRIVATE_KEY_BASE64:?Set JWT_PRIVATE_KEY_BASE64 in .env}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     networks:
       - qa-net
     restart: unless-stopped
@@ -101,10 +103,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: qa
       SPRING_DATASOURCE_URL: jdbc:postgresql://turnos-db-qa:5432/turnosdb_qa
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
-    ports:
-      - "8182:8182"
+      SPRING_DATASOURCE_USERNAME: turnos_app
+      SPRING_DATASOURCE_PASSWORD: ${TURNOS_DB_PASSWORD:?Set TURNOS_DB_PASSWORD in .env}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     networks:
       - qa-net
     restart: unless-stopped
@@ -120,10 +121,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: qa
       SPRING_DATASOURCE_URL: jdbc:postgresql://notifications-db-qa:5432/notificationsdb_qa
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: yeison
-    ports:
-      - "8183:8183"
+      SPRING_DATASOURCE_USERNAME: notifications_app
+      SPRING_DATASOURCE_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?Set NOTIFICATIONS_DB_PASSWORD in .env}
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     networks:
       - qa-net
     restart: unless-stopped
@@ -138,9 +138,8 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: qa
-      SPRING_DATA_MONGODB_URI: mongodb://audit-db-qa:27017/auditdb_qa
-    ports:
-      - "8184:8184"
+      SPRING_DATA_MONGODB_URI: mongodb://audit_app:${MONGODB_APP_PASSWORD:?Set MONGODB_APP_PASSWORD in .env}@audit-db-qa:27017/auditdb_qa?authSource=auditdb_qa
+      JWT_PUBLIC_KEY_BASE64: ${JWT_PUBLIC_KEY_BASE64:?Set JWT_PUBLIC_KEY_BASE64 in .env}
     networks:
       - qa-net
     restart: unless-stopped
@@ -173,7 +172,7 @@ services:
     depends_on:
       - api-gateway-qa
     ports:
-      - "4210:80"
+      - "4210:8080"
     networks:
       - qa-net
     restart: unless-stopped

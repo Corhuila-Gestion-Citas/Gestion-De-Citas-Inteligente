@@ -1,16 +1,10 @@
+import { provideHttpClient } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { NotificacionesService } from './notificaciones';
 
-import { Notificaciones } from './notificaciones';
-
-describe('Notificaciones', () => {
-  let service: Notificaciones;
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(Notificaciones);
-  });
-
-  it('should be created', () => {
-    expect(service).toBeTruthy();
+describe('NotificacionesService', () => {
+  it('is created', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient()] });
+    expect(TestBed.inject(NotificacionesService)).toBeTruthy();
   });
 });

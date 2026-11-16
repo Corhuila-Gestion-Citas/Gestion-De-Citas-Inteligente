@@ -6,6 +6,7 @@ import com.citas.notifications_service.repository.NotificacionRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class NotificacionService {
@@ -33,6 +34,10 @@ public class NotificacionService {
 
     public List<Notificacion> obtenerPorUsuario(Long idUsuario) {
         return notificacionRepository.findByIdUsuario(idUsuario);
+    }
+
+    public Optional<Notificacion> obtenerPorId(Long id) {
+        return notificacionRepository.findById(id);
     }
 
     public Notificacion marcarComoLeida(Long id) {

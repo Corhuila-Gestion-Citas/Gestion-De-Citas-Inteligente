@@ -4,7 +4,7 @@ server:
 spring:
   data:
     mongodb:
-      uri: mongodb://localhost:27018/auditdb_qa
+      uri: ${SPRING_DATA_MONGODB_URI}
 
 management:
   endpoints:

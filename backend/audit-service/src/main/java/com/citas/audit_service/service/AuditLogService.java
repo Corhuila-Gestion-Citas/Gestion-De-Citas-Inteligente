@@ -17,10 +17,10 @@ public class AuditLogService {
         this.auditLogRepository = auditLogRepository;
     }
 
-    public AuditLog crearRegistro(AuditRequestDTO dto) {
+    public AuditLog crearRegistro(AuditRequestDTO dto, Long authenticatedUserId) {
         AuditLog auditLog = new AuditLog();
 
-        auditLog.setIdUsuario(dto.getIdUsuario());
+        auditLog.setIdUsuario(authenticatedUserId);
         auditLog.setAccion(dto.getAccion());
         auditLog.setDescripcion(dto.getDescripcion());
         auditLog.setServicioOrigen(dto.getServicioOrigen());

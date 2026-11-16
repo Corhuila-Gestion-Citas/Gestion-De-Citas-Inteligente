@@ -31,7 +31,7 @@ export class Login {
     this.error = '';
 
     const email = this.email.trim().toLowerCase();
-    const password = this.password.trim();
+    const password = this.password;
 
     if (!email || !password) {
       this.error = 'Debes completar el correo y la contraseña';

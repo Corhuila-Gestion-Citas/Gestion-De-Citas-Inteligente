@@ -1,6 +1,3 @@
 spring:
   application:
     name: audit-service
-
-  profiles:
-    active: develop

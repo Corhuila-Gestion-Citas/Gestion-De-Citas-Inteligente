@@ -11,6 +11,7 @@ export interface Usuario {
   nombre: string;
   email: string;
   rol: RolUsuario;
+  token?: string;
   telefono?: string;
   fechaNacimiento?: string;
   documento?: string;
@@ -51,6 +52,7 @@ export class UsuarioService {
       nombre: data?.nombre ?? data?.name ?? '',
       email: data?.email ?? data?.correo ?? data?.correoElectronico ?? data?.correo_electronico ?? '',
       rol,
+      token: data?.token,
       telefono: data?.telefono ?? data?.phone ?? '',
       fechaNacimiento: data?.fechaNacimiento ?? data?.fecha_nacimiento ?? '',
       documento: data?.documento ?? data?.documento ?? '',
@@ -78,7 +80,7 @@ export class UsuarioService {
     const body: RegistroUsuarioRequest = {
       nombre: usuario.nombre.trim(),
       email: usuario.email.trim().toLowerCase(),
-      password: usuario.password.trim(),
+      password: usuario.password,
       rol: usuario.rol,
       telefono: usuario.telefono ?? '',
       fechaNacimiento: usuario.fechaNacimiento ?? '',
@@ -95,7 +97,7 @@ export class UsuarioService {
     const body: RegistroUsuarioRequest = {
       nombre: usuario.nombre.trim(),
       email: usuario.email.trim().toLowerCase(),
-      password: usuario.password.trim(),
+      password: usuario.password,
       rol: usuario.rol,
       telefono: usuario.telefono ?? '',
       fechaNacimiento: usuario.fechaNacimiento ?? '',
@@ -115,7 +117,7 @@ export class UsuarioService {
   login(data: LoginRequest): Observable<Usuario> {
     const body: LoginRequest = {
       email: data.email.trim().toLowerCase(),
-      password: data.password.trim()
+      password: data.password
     };
 
     return this.http
@@ -125,8 +127,20 @@ export class UsuarioService {
 
   guardarSesion(usuario: Usuario): void {
     if (isPlatformBrowser(this.platformId)) {
-      localStorage.setItem('usuario', JSON.stringify(usuario));
+      const { token, ...datosUsuario } = usuario;
+      localStorage.setItem('usuario', JSON.stringify(datosUsuario));
+      if (token) {
+        sessionStorage.setItem('access_token', token);
+      } else {
+        sessionStorage.removeItem('access_token');
+      }
     }
+  }
+
+  obtenerToken(): string | null {
+    return isPlatformBrowser(this.platformId)
+      ? sessionStorage.getItem('access_token')
+      : null;
   }
 
   obtenerSesion(): Usuario | null {
@@ -140,10 +154,11 @@ export class UsuarioService {
   cerrarSesion(): void {
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('usuario');
+      sessionStorage.removeItem('access_token');
     }
   }
 
   estaLogueado(): boolean {
-    return this.obtenerSesion() !== null;
+    return this.obtenerSesion() !== null && this.obtenerToken() !== null;
   }
 }

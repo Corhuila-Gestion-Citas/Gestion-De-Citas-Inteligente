@@ -5,6 +5,7 @@ import com.citas.users_service.dto.UserResponseDTO;
 import com.citas.users_service.model.Role;
 import com.citas.users_service.model.User;
 import com.citas.users_service.repository.UserRepository;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,7 @@ public class UserService {
     public UserResponseDTO create(UserRequestDTO request) {
 
         String email = request.getEmail().trim().toLowerCase();
-        String password = request.getPassword().trim();
+        String password = request.getPassword();
 
         if (userRepository.existsByEmail(email)) {
             throw new RuntimeException("Ya existe un usuario con ese correo");
@@ -44,7 +45,8 @@ public class UserService {
                 saved.getId(),
                 saved.getNombre(),
                 saved.getEmail(),
-                saved.getRol()
+                saved.getRol(),
+                jwtService.generateToken(saved)
         );
     }
 
@@ -86,7 +88,7 @@ public class UserService {
         user.setEmail(email);
 
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword().trim()));
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
         user.setRol(user.getRol());
@@ -112,13 +114,13 @@ public class UserService {
     public UserResponseDTO login(String email, String password) {
 
         String cleanEmail = email.trim().toLowerCase();
-        String cleanPassword = password.trim();
+        String cleanPassword = password;
 
         User user = userRepository.findByEmail(cleanEmail)
-                .orElseThrow(() -> new RuntimeException("Credenciales inválidas"));
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
 
         if (!passwordEncoder.matches(cleanPassword, user.getPassword())) {
-            throw new RuntimeException("Credenciales inválidas");
+            throw new BadCredentialsException("Credenciales inválidas");
         }
 
         String token = jwtService.generateToken(user);

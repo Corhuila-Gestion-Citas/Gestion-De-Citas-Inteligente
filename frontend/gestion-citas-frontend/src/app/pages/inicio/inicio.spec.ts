@@ -1,18 +1,37 @@
-import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { TurnoStoreService } from '../../services/turno-store';
+import { UsuarioService } from '../../services/usuario.service';
+import { Inicio } from './inicio';
 
-@Component({
-  selector: 'app-inicio',
-  standalone: true,
-  templateUrl: './inicio.html',
-  styleUrl: './inicio.css'
-})
-export class Inicio {
+describe('Inicio', () => {
+  let component: Inicio;
+  let fixture: ComponentFixture<Inicio>;
 
-  constructor(private router: Router){}
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [Inicio],
+      providers: [
+        provideRouter([]),
+        {
+          provide: UsuarioService,
+          useValue: {
+            obtenerSesion: () => ({ id: 1, nombre: 'Paciente', email: 'paciente@example.com', rol: 'CLIENTE' })
+          }
+        },
+        { provide: TurnoStoreService, useValue: { obtenerTurnos: () => of([]) } }
+      ]
+    }).compileComponents();
 
-  irSolicitarTurno(){
-    this.router.navigate(['/solicitar-turno']);
-  }
+    fixture = TestBed.createComponent(Inicio);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+  });
 
-}
+  it('creates the dashboard for an authenticated user', () => {
+    expect(component).toBeTruthy();
+    expect(component.usuario?.id).toBe(1);
+  });
+});
