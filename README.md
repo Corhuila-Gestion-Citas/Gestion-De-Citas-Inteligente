@@ -152,17 +152,33 @@ Registro inmutable y trazabilidad de operaciones críticas (**MongoDB**, colecci
 * **Firma asimétrica JWT (`RS256`):** `users-service` firma los tokens con una clave privada RSA de 3072 bits y una vigencia de **15 minutos**; los demás microservicios reciben únicamente la clave pública para verificar autenticidad.
 * **Control de acceso y propiedad (RBAC / BOLA):** Todos los endpoints con datos validan la identidad extraída del token JWT, impidiendo que un usuario consulte, edite o cancele recursos de terceros.
 * **Prevención de escalamiento de privilegios:** El registro público fuerza el rol `CLIENTE` e ignora cualquier intento de inyectar `rol: ADMIN` en el payload.
-* **Cuentas de base de datos con mínimo privilegio:** Cada microservicio PostgreSQL opera con su propia cuenta restringida (`users_app`, `turnos_app`, `notifications_app` sin permisos de superusuario mediante `database/init-app-user.sh`), y MongoDB utiliza un usuario `readWrite` exclusivo para `auditdb` (`database/init-mongo-app-user.sh`).
+* **Cuentas de base de datos separadas:** cada servicio PostgreSQL usa su propia cuenta y contraseña (`users_app`, `turnos_app`, `notifications_app`) y MongoDB usa un usuario `readWrite` exclusivo para `auditdb` (`database/init-mongo-app-user.sh`). **Limitación conocida:** en PostgreSQL esas cuentas siguen siendo superusuario dentro de su contenedor: la imagen oficial no permite quitar ese atributo al usuario que inicializa el servidor y `database/init-app-user.sh` no lo consigue (se verificó con PostgreSQL 16). El riesgo se mitiga porque en `qa` y `main` las bases de datos no se publican fuera de la red de Docker.
 * **Aislamiento de red:** En los ambientes `qa` y `main` únicamente se exponen el **Frontend** y el **API Gateway**. En `develop`, los puertos internos se enlazan exclusivamente a `127.0.0.1`.
-* **Frontend endurecido (Nginx + Angular):** Almacenamiento de sesión en `sessionStorage`, interceptor HTTP para cabeceras `Authorization: Bearer` y políticas HTTP estrictas (`Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` y `Permissions-Policy`).
+* **Frontend endurecido (Nginx + Angular):** Token JWT en `sessionStorage` (se borra al cerrar la pestaña; los datos de perfil no sensibles —id, nombre, correo y rol— quedan en `localStorage`), interceptor HTTP para cabeceras `Authorization: Bearer` y políticas HTTP estrictas (`Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` y `Permissions-Policy`).
 
 ### Preparar secretos locales (`.env`)
 
-Antes de levantar cualquier ambiente por primera vez, genera el archivo `.env` en la raíz del proyecto (requiere **Node.js**; el archivo `.env` está excluido en `.gitignore`):
+Antes de levantar cualquier ambiente por primera vez hay que crear el archivo `.env` en la raíz del proyecto. Contiene el par de claves RSA (JWT RS256) y contraseñas aleatorias para las bases de datos. **No se versiona** (está en `.gitignore`) y el script no sobrescribe un `.env` existente.
+
+**Opción A: solo Docker (no hace falta instalar Node.js)**
+
+```powershell
+# Windows PowerShell
+docker run --rm -v "${PWD}:/work" -w /work node:20-alpine node scripts/generate-env.js
+```
 
 ```bash
-node -e "const fs=require('fs');const crypto=require('crypto');const keys=crypto.generateKeyPairSync('rsa',{modulusLength:3072,publicKeyEncoding:{type:'spki',format:'der'},privateKeyEncoding:{type:'pkcs8',format:'der'}});const secret=()=>crypto.randomBytes(32).toString('hex');const values={JWT_PRIVATE_KEY_BASE64:keys.privateKey.toString('base64'),JWT_PUBLIC_KEY_BASE64:keys.publicKey.toString('base64'),USERS_DB_PASSWORD:secret(),TURNOS_DB_PASSWORD:secret(),NOTIFICATIONS_DB_PASSWORD:secret(),MONGODB_ROOT_PASSWORD:secret(),MONGODB_APP_PASSWORD:secret()};fs.writeFileSync('.env',Object.entries(values).map(([key,value])=>key+'='+value).join('\n'),{encoding:'utf8'});console.log('Archivo .env creado correctamente.')"
+# Linux / macOS / Git Bash / GitHub Codespaces
+docker run --rm -v "$(pwd):/work" -w /work node:20-alpine node scripts/generate-env.js
 ```
+
+**Opción B: con Node.js instalado**
+
+```bash
+node scripts/generate-env.js
+```
+
+Si el archivo ya existe y quieres regenerarlo, añade `--force` y después borra los volúmenes antiguos con `docker compose -f <archivo> down -v`.
 
 > **Nota sobre volúmenes existentes:** Los scripts de inicialización en `database/` se ejecutan automáticamente cuando Docker crea volúmenes nuevos. Si reutilizas volúmenes creados antes de activar la autenticación, debes respaldarlos y migrar los roles manualmente.
 
@@ -304,6 +320,8 @@ Gestion-De-Citas-Inteligente/
 │   └── Presentacion/              # Material de sustentación
 ├── frontend/
 │   └── gestion-citas-frontend/    # Aplicación SPA en Angular + Nginx endurecido
+├── scripts/
+│   └── generate-env.js            # Genera el .env (claves RSA y contraseñas)
 ├── docker-compose.develop.yml
 ├── docker-compose.qa.yml
 ├── docker-compose.main.yml
@@ -329,5 +347,6 @@ Proyecto desarrollado por estudiantes de Ingeniería de Sistemas — **CORHUILA*
 
 * **Yeison Andrés Scarpeta Díaz**
 * **Nicolás Gabriel Álvarez Aguirre**
-* **Dayana Sofía Mendes Perafán**
-* **Andrea Catalina Cortés Ramírez**
+
+
+
