@@ -347,6 +347,6 @@ Proyecto desarrollado por estudiantes de Ingeniería de Sistemas — **CORHUILA*
 
 * **Yeison Andrés Scarpeta Díaz**
 * **Nicolás Gabriel Álvarez Aguirre**
-
+* **Dany Yulieth Campos Bustos**
 
 
